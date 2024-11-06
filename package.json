@@ -1,0 +1,14 @@
+{
+  "name": "btc-signature-verify",
+  "scripts": {
+    "test": "REPORT_GAS=y npx hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.15"
+  },
+  "dependencies": {
+    "@okxweb3/coin-bitcoin": "^1.0.30",
+    "decimal.js": "^10.4.3"
+  }
+}
