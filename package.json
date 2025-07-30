@@ -5,10 +5,12 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
-    "hardhat": "^2.22.15"
+    "hardhat": "^2.22.15",
+    "typescript": "^5.0.4"
   },
   "dependencies": {
     "@okxweb3/coin-bitcoin": "^1.0.30",
+    "@openzeppelin/contracts-upgradeable": "4.9.6",
     "decimal.js": "^10.4.3"
   }
 }

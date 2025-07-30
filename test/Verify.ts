@@ -73,7 +73,8 @@ describe("Mapping Contract", function () {
   async function deploy() {
     const [owner, user1, user2, user3] = await hre.viem.getWalletClients();
     const verify = await hre.viem.deployContract("Verify", []);
-    const mapping = await hre.viem.deployContract("Mapping", [verify.address]);
+    const mapping = await hre.viem.deployContract("Mapping", []);
+    await mapping.write.initialize([verify.address]);
 
     const publicClient = await hre.viem.getPublicClient();
 
@@ -135,10 +136,11 @@ describe("Mapping Contract", function () {
   describe("Deploy", function () {
     it("Reject zero address", async function () {
       const zeroAddress = "0x0000000000000000000000000000000000000000";
+      const mapping = await hre.viem.deployContract("Mapping", []);
 
-      await expect(
-        hre.viem.deployContract("Mapping", [zeroAddress])
-      ).to.be.rejectedWith("ZeroAddress");
+      await expect(mapping.write.initialize([zeroAddress])).to.be.rejectedWith(
+        "ZeroAddress"
+      );
     });
   });
 
@@ -163,17 +165,10 @@ describe("Mapping Contract", function () {
         { account: user1.account }
       );
 
-      expect(await mapping.read.isAddressLinked([publicKey])).to.be.true;
+      expect(await mapping.read.isRegistered([publicKey])).to.be.true;
       expect(await mapping.read.isEvmAddressLinked([evmAddress])).to.be.true;
-      expect(
-        (await mapping.read.getEvmAddress([publicKey])).toLowerCase()
-      ).to.equal(evmAddress.toLowerCase());
-      expect(await mapping.read.verifyLinking([publicKey, evmAddress])).to.be
-        .true;
-
-      const pubKeyHash = await mapping.read.getBtcPubKeyHash([evmAddress]);
-      expect(pubKeyHash).to.not.equal(
-        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      expect((await mapping.read.btcToEvm([publicKey])).toLowerCase()).to.equal(
+        evmAddress.toLowerCase()
       );
     });
 
@@ -288,80 +283,6 @@ describe("Mapping Contract", function () {
           { account: user1.account }
         )
       ).to.be.rejectedWith("InvalidSignature");
-    });
-  });
-
-  describe("Address Unlink", function () {
-    it("Successfully", async function () {
-      const { mapping, wallet, privateKey, btcAccount, user1 } =
-        await loadFixture(deploy);
-
-      const message = "Link my Bitcoin address";
-      const evmAddress = user1.account.address;
-      const publicKey = `0x${btcAccount.compressedPublicKey}` as `0x${string}`;
-
-      const signature = await createSignature(
-        wallet,
-        privateKey,
-        message,
-        evmAddress
-      );
-
-      await mapping.write.linkAddress(
-        [publicKey, evmAddress, message, signature as `0x${string}`],
-        { account: user1.account }
-      );
-
-      expect(await mapping.read.isAddressLinked([publicKey])).to.be.true;
-
-      await mapping.write.unlinkAddress([publicKey], {
-        account: user1.account,
-      });
-
-      expect(await mapping.read.isAddressLinked([publicKey])).to.be.false;
-      expect(await mapping.read.isEvmAddressLinked([evmAddress])).to.be.false;
-      expect(await mapping.read.getEvmAddress([publicKey])).to.equal(
-        "0x0000000000000000000000000000000000000000"
-      );
-      expect(await mapping.read.getBtcPubKeyHash([evmAddress])).to.equal(
-        "0x0000000000000000000000000000000000000000000000000000000000000000"
-      );
-    });
-
-    it("Reject unlinking non-registered address", async function () {
-      const { mapping, user1 } = await loadFixture(deploy);
-
-      const publicKey =
-        "0x0311223344556677889900112233445566778899001122334455667788990011";
-
-      await expect(
-        mapping.write.unlinkAddress([publicKey], { account: user1.account })
-      ).to.be.rejectedWith("NotRegistered");
-    });
-
-    it("Reject unauthorized unlinking", async function () {
-      const { mapping, wallet, privateKey, btcAccount, user1, user2 } =
-        await loadFixture(deploy);
-
-      const message = "Link my Bitcoin address";
-      const evmAddress = user1.account.address;
-      const publicKey = `0x${btcAccount.compressedPublicKey}` as `0x${string}`;
-
-      const signature = await createSignature(
-        wallet,
-        privateKey,
-        message,
-        evmAddress
-      );
-
-      await mapping.write.linkAddress(
-        [publicKey, evmAddress, message, signature as `0x${string}`],
-        { account: user1.account }
-      );
-
-      await expect(
-        mapping.write.unlinkAddress([publicKey], { account: user2.account })
-      ).to.be.rejectedWith("Unauthorized");
     });
   });
 });
