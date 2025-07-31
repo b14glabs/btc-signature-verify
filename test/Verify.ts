@@ -3,6 +3,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpe
 import { BtcWallet } from "@okxweb3/coin-bitcoin";
 import { expect } from "chai";
 import hre from "hardhat";
+const { ethers, upgrades } = require("hardhat");
 
 const mnemonicTest =
   "test test test test test test test test test test test junk";
@@ -72,9 +73,12 @@ describe("Verify Contract", function () {
 describe("Mapping Contract", function () {
   async function deploy() {
     const [owner, user1, user2, user3] = await hre.viem.getWalletClients();
+
     const verify = await hre.viem.deployContract("Verify", []);
-    const mapping = await hre.viem.deployContract("Mapping", []);
-    await mapping.write.initialize([verify.address]);
+
+    const Mapping = await ethers.getContractFactory("Mapping");
+    const mapping = await upgrades.deployProxy(Mapping, [verify.address]);
+    await mapping.waitForDeployment();
 
     const publicClient = await hre.viem.getPublicClient();
 
@@ -136,11 +140,11 @@ describe("Mapping Contract", function () {
   describe("Deploy", function () {
     it("Reject zero address", async function () {
       const zeroAddress = "0x0000000000000000000000000000000000000000";
-      const mapping = await hre.viem.deployContract("Mapping", []);
+      const Mapping = await ethers.getContractFactory("Mapping");
 
-      await expect(mapping.write.initialize([zeroAddress])).to.be.rejectedWith(
-        "ZeroAddress"
-      );
+      await expect(
+        upgrades.deployProxy(Mapping, [zeroAddress])
+      ).to.be.rejectedWith("ZeroAddress");
     });
   });
 
@@ -160,15 +164,14 @@ describe("Mapping Contract", function () {
         evmAddress
       );
 
-      await mapping.write.linkAddress(
-        [publicKey, evmAddress, message, signature as `0x${string}`],
-        { account: user1.account }
-      );
+      await mapping
+        .connect(user1)
+        .linkAddress(publicKey, evmAddress, message, signature);
 
-      expect(
-        (await mapping.read.evmToBtc([evmAddress])).toLowerCase()
-      ).to.deep.equal(publicKey.toLowerCase());
-      expect((await mapping.read.btcToEvm([publicKey])).toLowerCase()).to.equal(
+      expect((await mapping.evmToBtc(evmAddress)).toLowerCase()).to.deep.equal(
+        publicKey.toLowerCase()
+      );
+      expect((await mapping.btcToEvm(publicKey)).toLowerCase()).to.equal(
         evmAddress.toLowerCase()
       );
     });
@@ -178,15 +181,14 @@ describe("Mapping Contract", function () {
 
       const message = "Link my Bitcoin address";
       const evmAddress = user1.account.address;
-      const invalidPublicKey = "0x0311223344";
-      const signature =
-        "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+      const invalidPublicKey = "0x" + "11".repeat(30);
+      const signature = "0x" + "11".repeat(65);
 
       await expect(
-        mapping.write.linkAddress(
-          [invalidPublicKey, evmAddress, message, signature],
-          { account: user1.account }
-        )
+        mapping
+          .connect(user1)
+          .linkAddress(invalidPublicKey, evmAddress, message, signature)
       ).to.be.rejectedWith("InvalidPubKeyLength");
     });
 
@@ -212,16 +214,14 @@ describe("Mapping Contract", function () {
         evmAddress2
       );
 
-      await mapping.write.linkAddress(
-        [publicKey, evmAddress1, message, signature1 as `0x${string}`],
-        { account: user1.account }
-      );
+      await mapping
+        .connect(user1)
+        .linkAddress(publicKey, evmAddress1, message, signature1);
 
       await expect(
-        mapping.write.linkAddress(
-          [publicKey, evmAddress2, message, signature2 as `0x${string}`],
-          { account: user2.account }
-        )
+        mapping
+          .connect(user2)
+          .linkAddress(publicKey, evmAddress2, message, signature2)
       ).to.be.rejectedWith("BtcPublicKeyAlreadyLinked");
     });
 
@@ -255,16 +255,14 @@ describe("Mapping Contract", function () {
         evmAddress
       );
 
-      await mapping.write.linkAddress(
-        [publicKey1, evmAddress, message, signature1 as `0x${string}`],
-        { account: user1.account }
-      );
+      await mapping
+        .connect(user1)
+        .linkAddress(publicKey1, evmAddress, message, signature1);
 
       await expect(
-        mapping.write.linkAddress(
-          [publicKey2, evmAddress, message, signature2 as `0x${string}`],
-          { account: user1.account }
-        )
+        mapping
+          .connect(user1)
+          .linkAddress(publicKey2, evmAddress, message, signature2)
       ).to.be.rejectedWith("EvmAddressAlreadyLinked");
     });
 
@@ -275,14 +273,12 @@ describe("Mapping Contract", function () {
       const evmAddress = user1.account.address;
       const publicKey = `0x${btcAccount.compressedPublicKey}` as `0x${string}`;
 
-      const invalidSignature =
-        "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+      const invalidSignature = "0x" + "00".repeat(65);
 
       await expect(
-        mapping.write.linkAddress(
-          [publicKey, evmAddress, message, invalidSignature],
-          { account: user1.account }
-        )
+        mapping
+          .connect(user1)
+          .linkAddress(publicKey, evmAddress, message, invalidSignature)
       ).to.be.rejectedWith("InvalidSignature");
     });
   });

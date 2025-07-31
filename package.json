@@ -4,7 +4,10 @@
     "test": "REPORT_GAS=y npx hardhat test"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.1",
+    "ethers": "^6.15.0",
     "hardhat": "^2.22.15",
     "typescript": "^5.0.4"
   },
