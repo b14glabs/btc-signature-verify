@@ -15,19 +15,16 @@ interface IVerify {
 
 contract Mapping is Ownable2StepUpgradeable {
     mapping(bytes => address) public btcToEvm;
-    mapping(address => bytes) public evmToBtc;
-    mapping(bytes => bool) public isRegistered;
-    
+    mapping(address => bytes) public evmToBtc;    
     IVerify public verifier;
 
     event AddressLinked(bytes indexed btcPubKey, address indexed evmAddress, address indexed sender);
     event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
 
-    error AlreadyRegistered();
     error EvmAddressAlreadyLinked();
-    error NotRegistered();
+    error BtcPublicKeyAlreadyLinked();
+
     error InvalidSignature();
-    error Unauthorized();
     error InvalidPubKeyLength();
     error ZeroAddress();
 
@@ -52,23 +49,19 @@ contract Mapping is Ownable2StepUpgradeable {
     ) external {
         if (btcPubKey.length != 33) revert InvalidPubKeyLength();
                 
-        if (isRegistered[btcPubKey]) revert AlreadyRegistered();
         if (evmToBtc[evmAddress].length != 0) revert EvmAddressAlreadyLinked();
+        if (btcToEvm[btcPubKey] != address(0)) revert BtcPublicKeyAlreadyLinked();
+
         bool isValid = verifier.verifyMessage(message, signature, btcPubKey, evmAddress);
         if (!isValid) revert InvalidSignature();
         
         btcToEvm[btcPubKey] = evmAddress;
         evmToBtc[evmAddress] = btcPubKey;
-        isRegistered[btcPubKey] = true;
         
         emit AddressLinked(btcPubKey, evmAddress, msg.sender);
     }
     
-    function isEvmAddressLinked(address evmAddress) external view returns (bool) {
-        return evmToBtc[evmAddress].length != 0;
-    }
-    
-     function updateVerifier(address newVerifierAddress) external onlyOwner validAddress(newVerifierAddress) {
+    function updateVerifier(address newVerifierAddress) external onlyOwner validAddress(newVerifierAddress) {
         address oldVerifier = address(verifier);
         verifier = IVerify(newVerifierAddress);
         emit VerifierUpdated(oldVerifier, newVerifierAddress);

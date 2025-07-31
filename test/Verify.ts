@@ -165,8 +165,9 @@ describe("Mapping Contract", function () {
         { account: user1.account }
       );
 
-      expect(await mapping.read.isRegistered([publicKey])).to.be.true;
-      expect(await mapping.read.isEvmAddressLinked([evmAddress])).to.be.true;
+      expect(
+        (await mapping.read.evmToBtc([evmAddress])).toLowerCase()
+      ).to.deep.equal(publicKey.toLowerCase());
       expect((await mapping.read.btcToEvm([publicKey])).toLowerCase()).to.equal(
         evmAddress.toLowerCase()
       );
@@ -221,7 +222,7 @@ describe("Mapping Contract", function () {
           [publicKey, evmAddress2, message, signature2 as `0x${string}`],
           { account: user2.account }
         )
-      ).to.be.rejectedWith("AlreadyRegistered");
+      ).to.be.rejectedWith("BtcPublicKeyAlreadyLinked");
     });
 
     it("Already EVM address", async function () {
